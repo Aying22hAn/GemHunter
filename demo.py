@@ -1,47 +1,39 @@
-def generate_CNF(matrix):
-    cnf = []
+from pysat.solvers import Glucose3
 
-    rows = len(matrix)
-    cols = len(matrix[0])
+def solve_knapsack(values, weights, capacity):
+    num_items = len(values)
 
-    # Helper function to get neighboring cells
-    def neighbors(i, j):
-        return [(i+di, j+dj) for di in [-1, 0, 1] for dj in [-1, 0, 1]
-                if (di != 0 or dj != 0) and 0 <= i+di < rows and 0 <= j+dj < cols]
+    # Create a SAT solver instance
+    solver = Glucose3()
 
-    # Iterate through the matrix to generate CNF clauses
-    for i in range(rows):
-        for j in range(cols):
-            # Cell with a number
-            if isinstance(matrix[i][j], int):
-                n = matrix[i][j]
-                cell_var = f"x_{i}_{j}"
-                neighboring_traps = [f"x_{x}_{y}" for x, y in neighbors(i, j)]
+    # Create boolean variables for each item
+    items = [solver.new_var() for _ in range(num_items)]
 
-                # If the cell is surrounded by n traps, it cannot be a gem
-                clause = [f"-{cell_var}"] + neighboring_traps
-                cnf.append(clause)
+    # Add constraints: each item can be either selected or not
+    for item in items:
+        solver.add_clause([item])
+        solver.add_clause([-item])
 
-                # If the cell is surrounded by less than n traps, it cannot be a trap
-                for combination in combinations(neighboring_traps, n):
-                    clause = [cell_var] + list(combination)
-                    cnf.append(clause)
+    # Add constraint: total weight of selected items cannot exceed capacity
+    for i in range(num_items):
+        solver.add_clause([-items[i]] + [items[j] for j in range(num_items) if j != i])
 
-            # Cell without a number
-            else:
-                cell_var = f"x_{i}_{j}"
-                cnf.append([f"{cell_var}", f"-{cell_var}"])
+    # Add constraint: total value of selected items should be maximized
+    objective = [values[i] * items[i] for i in range(num_items)]
+    solver.add_clause(objective)
 
-    return cnf
+    # Solve the SAT problem
+    if solver.solve():
+        # Get the selected items
+        selected_items = [i for i in range(num_items) if solver.model[i] > 0]
+        return selected_items
+    else:
+        return []
 
-# Example matrix
-matrix = [
-    [3, '_', 2, '_'],
-    ['_', '_', 2, '_'],
-    ['_', 3, 1, '_']
-]
+# Example usage
+values = [10, 20, 30, 40]
+weights = [1, 2, 3, 4]
+capacity = 6
 
-# Generate CNF clauses
-cnf = generate_CNF(matrix)
-for clause in cnf:
-    print(clause)
+selected_items = solve_knapsack(values, weights, capacity)
+print("Selected items:", selected_items)
