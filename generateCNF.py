@@ -85,7 +85,7 @@ def solveByPySAT(array, kb):
     else:
         return None
                                  
-def showSolution(array, solution, trapNum):
+def showSolution(filename, array, solution, trapNum):
     
     showArray = array.copy()
     for var in solution:
