@@ -1,4 +1,4 @@
-from itertools import combinations
+''' FILE HANDLING '''
 
 def readFile(filename):
     array = []
@@ -23,7 +23,14 @@ def writeArrayToFile(array, filename):
 def printArray(array):
     for row in array:
         print(row)
-    
+        
+        
+''' GENERATING CNF FORMULA '''
+
+
+from itertools import combinations
+
+   
 def markTraps(array):
     trapNum = [[0] * len(array[0]) for _ in range(len(array))]
     count = 0
@@ -32,6 +39,8 @@ def markTraps(array):
             if array[i][j] == '_':
                 count += 1
                 trapNum[i][j] = count
+                
+    # print(count, end='\n')
                 
     return trapNum
 
@@ -47,14 +56,32 @@ def getSurround(array, trapNum, i, j):
             
 def generateCNF(array, trapNum):
     kb = []
+    
+    # Each cell is either a trap or not a trap
+    for i in range(len(trapNum)):
+        for j in range(len(trapNum[0])):
+            if trapNum[i][j] != 0:
+                kb.append([trapNum[i][j], -trapNum[i][j]])
+                
     for i in range(len(array)):
         for j in range(len(array[0])):
             if array[i][j] != '_': 
                 surrounded = getSurround(array, trapNum, i, j)
-                if len(surrounded) == int(array[i][j]):
+                
+                # If the cell contains 0, all surrounded cells are not traps
+                if(int(array[i][j]) == 0):
+                    for trap in surrounded:
+                        if [trap] not in kb:
+                            kb.append([-trap])
+                            
+                # If the number of mine surrounding the cell is equal to the number of surrounded cells,
+                # all surrounded cells are traps
+                elif len(surrounded) == int(array[i][j]):
                     for trap in surrounded:
                         if [trap] not in kb:
                             kb.append([trap])
+                            
+                            
                 else:
                     # At least one variable in the combinations is not mine 
                     # Because the number K = the number of mine surrounding the cell + 1
@@ -74,8 +101,9 @@ def generateCNF(array, trapNum):
                             
     return kb
                              
-                            
-def solveByPySAT(array, kb):
+''' Using PySAT'''     
+          
+def solveByPySAT(kb):
     from pysat.solvers import Solver
     solver = Solver(name='Glucose3')
     for clause in kb:
@@ -184,8 +212,74 @@ def backtracking(assignment, variables, clauses):
         if result is not None:
             return result
     return None
-                 
-                 
+    
+    
+    
+''' Davis-Putnam-Logemann-Loveland algorithm '''
+def satisfies_literal(literal, assignment):
+    var = abs(literal)
+    value = literal > 0
+    return assignment.get(var, None) == value
+
+def is_clause_satisfied(clause, assignment):
+    return any(satisfies_literal(literal, assignment) for literal in clause)
+
+def unit_propagation(clauses, assignment):
+    changed = True
+    while changed:
+        changed = False
+        for clause in clauses:
+            if len(clause) == 1:
+                literal = clause[0]
+                var = abs(literal)
+                value = literal > 0
+                if var not in assignment:
+                    assignment[var] = value
+                    clauses = [c for c in clauses if not is_clause_satisfied(c, assignment)]
+                    changed = True
+                    break
+    return clauses, assignment
+
+def pure_literal_elimination(clauses, assignment):
+    literals = set(lit for clause in clauses for lit in clause if abs(lit) not in assignment)
+    pure_literals = {lit for lit in literals if -lit not in literals}
+    for literal in pure_literals:
+        var = abs(literal)
+        value = literal > 0
+        assignment[var] = value
+    clauses = [c for c in clauses if not is_clause_satisfied(c, assignment)]
+    return clauses, assignment
+
+def dpll(clauses, assignment):
+    # Áp dụng Unit Propagation và Pure Literal Elimination
+    clauses, assignment = unit_propagation(clauses, assignment)
+    clauses, assignment = pure_literal_elimination(clauses, assignment)
+
+    # Kiểm tra xem liệu tất cả clauses đã được thỏa mãn
+    if not clauses:
+        return True, assignment
+
+    # Chọn một biến chưa được gán
+    unassigned_vars = {abs(lit) for clause in clauses for lit in clause if abs(lit) not in assignment}
+    if not unassigned_vars:
+        return False, None
+    var = unassigned_vars.pop()
+
+    # Thử gán True và sau đó là False
+    for value in [True, False]:
+        new_assignment = assignment.copy()
+        new_assignment[var] = value
+        result, final_assignment = dpll(clauses, new_assignment)
+        if result:
+            return True, final_assignment
+
+    return False, None
+  
+  
+''' Time measurement '''           
+import timeit
+
+                
                  
 '''Main function''' 
 def main():
@@ -195,19 +289,49 @@ def main():
     trapNum = markTraps(array)
     kb = generateCNF(array, trapNum)
     
-    # #PySAT solution
-    # pySatSolution = solveByPySAT(array, kb)
-    # showSolution("output.txt", array, pySatSolution, trapNum)
+    
+    # print(kb)
+    
+    #PySAT solution
+    # pySatSolution = solveByPySAT(kb)
+    # if pySatSolution is not None:
+    #   showSolution("pysat_output.txt", array, pySatSolution, trapNum)
     
     # #Brute force solution
     # brute_force_Solution = brute_force(kb)
-    # showSolution2("output.txt", array, brute_force_Solution, trapNum)
+    # if brute_force_Solution is not None:
+    #   showSolution2("brute_force_output.txt", array, brute_force_Solution, trapNum)
     
-    #Backtracking solution
-    variables = extract_variables(kb)
-    backTrackingSolution = backtracking({}, variables, kb)
-    showSolution2("output.txt", array, backTrackingSolution, trapNum) 
+    # # Backtracking solution
+    # variables = extract_variables(kb)
+    # backTrackingSolution = backtracking({}, variables, kb)
     
+    # if backTrackingSolution is not None:
+    #     showSolution2("back_tracking_output.txt", array, backTrackingSolution, trapNum) 
+    
+    
+    # DPLL solution
+    
+    # assignment = {}
+    # satisfiable, DPLLSolution = dpll(kb, assignment)
+    # if satisfiable:
+    #     showSolution2("DPLL_output.txt", array, DPLLSolution, trapNum)
+
+    # # Time measurement
+    LOOP_TIME = 1
+    # pySatTime = timeit.timeit(lambda: solveByPySAT(kb), number=LOOP_TIME)
+    bruteForceTime = timeit.timeit(lambda: brute_force(kb), number=LOOP_TIME)
+    # backTrackingTime = timeit.timeit(lambda: backtracking({}, variables, kb), number=LOOP_TIME)
+    # dpllTime = timeit.timeit(lambda: dpll(kb, assignment), number=LOOP_TIME)
+    
+    
+    with open("time_output.txt", 'w') as file:
+    #     file.write("PySAT time: " + str(pySatTime) + '\n')
+        file.write("Brute force time: " + str(bruteForceTime) + '\n')
+    #     file.write("Backtracking time: " + str(backTrackingTime) + '\n')
+    #     file.write("DPLL time: " + str(dpllTime) + '\n')
+    
+
     
 if __name__ == "__main__":
     main()
