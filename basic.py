@@ -312,24 +312,23 @@ def main():
     
     # DPLL solution
     
-    # assignment = {}
-    # satisfiable, DPLLSolution = dpll(kb, assignment)
+    # satisfiable, DPLLSolution = dpll(kb, {})
     # if satisfiable:
     #     showSolution2("DPLL_output.txt", array, DPLLSolution, trapNum)
 
     # # Time measurement
     LOOP_TIME = 1
     # pySatTime = timeit.timeit(lambda: solveByPySAT(kb), number=LOOP_TIME)
-    bruteForceTime = timeit.timeit(lambda: brute_force(kb), number=LOOP_TIME)
+    # bruteForceTime = timeit.timeit(lambda: brute_force(kb), number=LOOP_TIME)
     # backTrackingTime = timeit.timeit(lambda: backtracking({}, variables, kb), number=LOOP_TIME)
-    # dpllTime = timeit.timeit(lambda: dpll(kb, assignment), number=LOOP_TIME)
+    dpllTime = timeit.timeit(lambda: dpll(kb, {}), number=LOOP_TIME)
     
     
     with open("time_output.txt", 'w') as file:
     #     file.write("PySAT time: " + str(pySatTime) + '\n')
-        file.write("Brute force time: " + str(bruteForceTime) + '\n')
+        # file.write("Brute force time: " + str(bruteForceTime) + '\n')
     #     file.write("Backtracking time: " + str(backTrackingTime) + '\n')
-    #     file.write("DPLL time: " + str(dpllTime) + '\n')
+        file.write("DPLL time: " + str(dpllTime) + '\n')
     
 
     
